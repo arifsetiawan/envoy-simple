@@ -1,0 +1,63 @@
+{
+    "listeners": [{
+        "address": "tcp://0.0.0.0:80",
+        "filters": [{
+            "type": "read",
+            "name": "http_connection_manager",
+            "config": {
+                "server_name": "nextapi",
+                "codec_type": "auto",
+                "stat_prefix": "ingress_http",
+                "use_remote_address": true,
+                "access_log": [{"path": "/tmp/envoy.access.log"}],
+                "route_config": {
+                    "virtual_hosts": [{
+                        "name": "grpc_service",
+                        "domains": ["*"],
+                        "routes": [{
+                            "prefix": "/",
+                            "cluster": "grpc1"
+                        }]
+                    }]
+                },
+                "filters": [
+                    {
+                        "type": "both",
+                        "name": "grpc_json_transcoder",
+                        "config": {
+                            "proto_descriptor": "/etc/hello.pb",
+                            "services": ["helloworld.Greeter"],
+                            "print_options": {
+                                "add_whitespace": false,
+                                "always_print_primitive_fields": false,
+                                "always_print_enums_as_ints": false,
+                                "preserve_proto_field_names": false
+                            }
+                        }
+                    },    
+                    {
+                        "type": "decoder",
+                        "name": "router",
+                        "config": {}
+                    }
+                ]
+            }
+        }]
+    }],
+    "admin": {
+        "access_log_path": "/tmp/admin_access.log",
+        "address": "tcp://0.0.0.0:9901"
+    },
+    "cluster_manager": {
+        "clusters": [{
+            "name": "grpc1",
+            "connect_timeout_ms": 250,
+            "type": "static",
+            "lb_type": "random",
+            "features": "http2",
+            "hosts": [
+                {"url": "tcp://192.168.99.100:50051"} 
+            ]
+        }]
+    }
+}
